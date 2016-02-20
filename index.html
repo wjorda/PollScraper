@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Poll Scraper</title>
+</head>
+<body>
+Hello world!
+<ul id="polls"></ul>
+<script type="text/javascript" src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.11.1.js"></script>
+<script type="text/javascript">
+    var socket = io.connect('http://localhost:8000');
+    var template = '<li class="poll-result"><div><h4 class="lp-race"></h4><span class="poll-date"></span> - <a class="lp-pollster"></a><ul class="lp-results"></ul><span class="lp-spead"></span></div></li>';
+    socket.on('polls', function(polls) {
+        var $pollsList = $('#polls')
+        for (var i = 0; i<polls.length; i++) {
+            var poll = polls[i];
+            var $pollElement = $(template);
+            $pollElement.find('.lp-race').text(poll.race);
+            $pollElement.find('.lp-spread').text(poll.spread);
+            $pollElement.find('.poll-date').text(poll.date);
+
+            var $pollsterEl = $pollElement.find('.lp-pollster');
+            $pollsterEl.text(poll.pollster);
+            $pollsterEl.attr('href', poll.link);
+
+            var $resultsEl = $pollElement.find('.lp-results');
+            for (var j = 0; j < poll.results.length; j++) {
+                var candidate = poll.results[j];
+                $resultsEl.append('<li class="candidate-result">' + candidate.name + ': ' + candidate.percent + '%</li>');
+            }
+            $pollsList.append($pollElement);
+        }
+        console.log(polls);
+    });
+</script>
+</body>
+</html>
