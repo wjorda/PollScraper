@@ -5,34 +5,110 @@
     <title>Poll Scraper</title>
 </head>
 <body>
-Hello world!
+<h1>Poll Scraper</h1>
+<h3>28-Day Polling Averages</h3>
+<table id="poll-avgs">
+    <thead>
+        <tr></tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
 <ul id="polls"></ul>
 <script type="text/javascript" src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
 <script type="text/javascript" src="http://code.jquery.com/jquery-1.11.1.js"></script>
 <script type="text/javascript">
+    function dateFormat(date) {
+        var monthNames = [
+            "January", "February", "March",
+            "April", "May", "June", "July",
+            "August", "September", "October",
+            "November", "December"
+        ];
+
+        var weekdayNames = [
+                "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+        ];
+
+        var day = date.getDate();
+        var monthIndex = date.getMonth();
+        var year = date.getFullYear();
+
+        return weekdayNames[date.getDay()] + ' ' + day + ' ' + monthNames[monthIndex] + ' ' + year;
+    }
+
     var socket = io.connect('http://localhost:8000');
-    var template = '<li class="poll-result"><div><h4 class="lp-race"></h4><span class="poll-date"></span> - <a class="lp-pollster"></a><ul class="lp-results"></ul><span class="lp-spead"></span></div></li>';
-    socket.on('polls', function(polls) {
-        var $pollsList = $('#polls')
+
+    function processPollList(polls) {
+        var template = '<li class="poll-result"><div><h4 class="lp-race"></h4><span class="poll-date"></span> - <a class="lp-pollster"></a><ul class="lp-results"></ul><span class="lp-spead"></span></div></li>';
+        var $pollsList = $('#polls');
         for (var i = 0; i<polls.length; i++) {
             var poll = polls[i];
             var $pollElement = $(template);
             $pollElement.find('.lp-race').text(poll.race);
             $pollElement.find('.lp-spread').text(poll.spread);
-            $pollElement.find('.poll-date').text(poll.date);
+            $pollElement.find('.poll-date').text(dateFormat(new Date(poll.date)));
+            console.log(poll.date);
 
             var $pollsterEl = $pollElement.find('.lp-pollster');
             $pollsterEl.text(poll.pollster);
             $pollsterEl.attr('href', poll.link);
 
             var $resultsEl = $pollElement.find('.lp-results');
-            for (var j = 0; j < poll.results.length; j++) {
-                var candidate = poll.results[j];
-                $resultsEl.append('<li class="candidate-result">' + candidate.name + ': ' + candidate.percent + '%</li>');
+            for (var candidate in poll.results) {
+                if (poll.results.hasOwnProperty(candidate)) {
+                    $resultsEl.append('<li class="candidate-result">' + candidate + ': ' + poll.results[candidate] + '</li>');
+                }
             }
             $pollsList.append($pollElement);
         }
-        console.log(polls);
+    }
+
+    function processAverageTable(sql_resp, race) {
+        var $table = $('#poll-avgs');
+        var $header = $table.find('thead tr');
+        for(header in sql_resp[0]) {
+            $header.append('<th>' + header + '</th>');
+        }
+        var $body = $table.find('tbody');
+        for(var i = 0; i < sql_resp.length; i++) {
+            var template = '<tr class="average-row"></tr>';
+            var $row = $(template);
+            for (column in sql_resp[i]) {
+                if (!sql_resp[i].hasOwnProperty(column)) continue;
+                var color = 'rgb(255,255,255)';
+                var data = sql_resp[i][column];
+                if (!data) data = 0;
+                if (column !== 'NumPolls' && column !== 'race' && column !== 'max(date)') {
+                    var colorInt = Math.round((100 - data) * 255 / 100);
+                    color = 'rgb(' + colorInt + ',255,255)';
+                }
+                if (column === 'LastPoll') {
+                    data = dateFormat(new Date(data));
+                }
+                if (column === 'Race') {
+                    data = data.replace(race, '');
+                }
+                var tag = '<td style="background: ' + color + '">' + data + '</td>';
+                $row.append(tag);
+            }
+            $body.append($row);
+        }
+    }
+
+    socket.on('polls', function(polls) {
+        processPollList(polls);
+
+        var sql = "select race as Race, max(date) as LastPoll, avg(results->'$.Trump') as Trump, avg(results->'$.Cruz') as Cruz, avg(results->'$.Rubio') as Rubio, avg(results->'$.Kasich') as Kasich, avg(results->'$.Bush') as Bush, avg(results->'$.Carson') as Carson, avg(results->'$.Christie') as Christie, avg(results->'$.Fiorina') as Fiorina, avg(results->'$.Huckabee') as Huckabee, avg(results->'$.Santorum') as Santorum, avg(results->'$.Paul') as Paul, count(*) as NumPolls from polls group by race having Trump is not null AND Rubio is not null order by max(date) desc;"
+        socket.emit('sql-query', 'pollscrape123', sql, function(err, sql, res, fields) {
+            if(err) {
+                console.log(err);
+            } else {
+                console.log(JSON.stringify(res));
+                processAverageTable(res, 'Republican Presidential');
+            }
+        });
+        //console.log(JSON.stringify(polls));
     });
 </script>
 </body>

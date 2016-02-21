@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="dataSourceStorageLocal">
+    <data-source name="MySQL - pollscrape@localhost" uuid="745e2f8c-aad0-400e-9aac-6bf4c5f98db2">
+      <secret-storage>master_key</secret-storage>
+      <user-name>pollscrape</user-name>
+      <schema-pattern>pollscrape.*</schema-pattern>
+      <default-schemas>pollscrape.*</default-schemas>
+    </data-source>
+  </component>
+</project>
